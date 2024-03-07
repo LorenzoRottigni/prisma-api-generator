@@ -20,6 +20,8 @@ export default class RESTGenerator extends APIGenerator implements APIGeneratorS
                 ...this.driver.__create,
                 ...this.driver.__update,
                 ...this.driver.__delete,
+                ...this.driver.__getters,
+                ...this.driver.__setters
             ]
         )
     }

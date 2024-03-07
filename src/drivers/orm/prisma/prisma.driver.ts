@@ -414,4 +414,176 @@ export default class PrismaDriver extends ORMDriver implements ORMDriverSchema {
             this.factory.createStringLiteral("@prisma/client")
         )
     }
+
+    public get __getters() {
+        const getters: ts.FunctionDeclaration[] = [];
+    
+        this.models.forEach(model => {
+            model.fields.forEach(field => {
+                const getterFunctionBody = this.factory.createBlock([
+                    // Instantiate PrismaClient
+                    this.factory.createVariableStatement(
+                        undefined,
+                        this.factory.createVariableDeclarationList([
+                            this.factory.createVariableDeclaration(
+                                this.factory.createIdentifier("prisma"),
+                                undefined,
+                                undefined,
+                                this.factory.createNewExpression(
+                                    this.factory.createIdentifier("PrismaClient"),
+                                    undefined,
+                                    []
+                                )
+                            )
+                        ])
+                    ),
+                    // Execute query using PrismaClient and return the result
+                    this.factory.createReturnStatement(
+                        this.factory.createAwaitExpression(
+                            this.factory.createCallExpression(
+                                this.factory.createPropertyAccessExpression(
+                                    this.factory.createPropertyAccessExpression(
+                                        this.factory.createIdentifier("prisma"),
+                                        this.factory.createIdentifier(model.name.toLowerCase())
+                                    ),
+                                    this.factory.createIdentifier("findUnique")
+                                ),
+                                undefined,
+                                [
+                                    this.factory.createObjectLiteralExpression([
+                                        this.factory.createPropertyAssignment(
+                                            this.factory.createIdentifier("where"),
+                                            this.factory.createObjectLiteralExpression([
+                                                this.factory.createPropertyAssignment(
+                                                    this.factory.createIdentifier(field.name),
+                                                    this.factory.createIdentifier("id") // Assuming id field for lookup
+                                                )
+                                            ])
+                                        )
+                                    ])
+                                ]
+                            )
+                        )
+                    )
+                ], true);
+        
+                // Create function declaration
+                const getterFunction = this.factory.createFunctionDeclaration(
+                    [this.factory.createModifier(ts.SyntaxKind.AsyncKeyword)], // Add async modifier
+                    undefined,
+                    `get${capitalize(model.name)}${capitalize(field.name)}`, // Getter function name
+                    undefined,
+                    [this.factory.createParameterDeclaration(
+                        undefined,
+                        undefined,
+                        this.factory.createIdentifier("id"), // Assuming id parameter
+                        undefined,
+                        this.factory.createTypeReferenceNode("number", []) // Assuming id is of type number
+                    )],
+                    this.factory.createTypeReferenceNode(
+                        "Promise",
+                        [this.factory.createTypeReferenceNode(field.type, [])] // Assuming field.type contains the type of the column
+                    ),
+                    getterFunctionBody
+                );
+    
+                getters.push(getterFunction);
+            });
+        });
+    
+        return getters;
+    }
+
+    public get __setters() {
+        const setters: ts.FunctionDeclaration[] = [];
+    
+        this.models.forEach(model => {
+            model.fields.forEach(field => {
+                const parameterName = `${model.name.toLowerCase()}Data`; // Parameter name for data to update
+        
+                // Create the argument for the update method
+                const updateMethodArgument = this.factory.createObjectLiteralExpression([
+                    this.factory.createPropertyAssignment(
+                        this.factory.createIdentifier("where"),
+                        this.factory.createObjectLiteralExpression([
+                            this.factory.createPropertyAssignment(
+                                this.factory.createIdentifier("id"),
+                                this.factory.createIdentifier("id") // Assuming id field for update condition
+                            )
+                        ])
+                    ),
+                    this.factory.createPropertyAssignment(
+                        this.factory.createIdentifier("data"),
+                        this.factory.createIdentifier(parameterName)
+                    )
+                ]);
+        
+                const functionBody = this.factory.createBlock([
+                    // Instantiate PrismaClient
+                    this.factory.createVariableStatement(
+                        undefined,
+                        this.factory.createVariableDeclarationList([
+                            this.factory.createVariableDeclaration(
+                                this.factory.createIdentifier("prisma"),
+                                undefined,
+                                undefined,
+                                this.factory.createNewExpression(
+                                    this.factory.createIdentifier("PrismaClient"),
+                                    undefined,
+                                    []
+                                )
+                            )
+                        ])
+                    ),
+                    // Execute query using PrismaClient and return the result
+                    this.factory.createReturnStatement(
+                        this.factory.createAwaitExpression(
+                            this.factory.createCallExpression(
+                                this.factory.createPropertyAccessExpression(
+                                    this.factory.createPropertyAccessExpression(
+                                        this.factory.createIdentifier("prisma"),
+                                        this.factory.createIdentifier(model.name.toLowerCase())
+                                    ),
+                                    this.factory.createIdentifier("update")
+                                ),
+                                undefined,
+                                [updateMethodArgument]
+                            )
+                        )
+                    )
+                ], true);
+        
+                // Create function declaration
+                const setterFunction = this.factory.createFunctionDeclaration(
+                    [this.factory.createModifier(ts.SyntaxKind.AsyncKeyword)], // Add async modifier
+                    undefined,
+                    `set${capitalize(model.name)}${capitalize(field.name)}`, // Setter function name
+                    undefined,
+                    [this.factory.createParameterDeclaration(
+                        undefined,
+                        undefined,
+                        this.factory.createIdentifier("id"), // Assuming id parameter
+                        undefined,
+                        this.factory.createTypeReferenceNode("number", []) // Assuming id is of type number
+                    ),
+                    this.factory.createParameterDeclaration(
+                        undefined,
+                        undefined,
+                        this.factory.createIdentifier(parameterName),
+                        undefined,
+                        this.factory.createTypeReferenceNode(field.type, []) // Assuming field.type contains the type of the column
+                    )],
+                    this.factory.createTypeReferenceNode(
+                        "Promise",
+                        [this.factory.createTypeReferenceNode(model.name, [])] // Assuming model.name contains the type of the table
+                    ),
+                    functionBody
+                );
+    
+                setters.push(setterFunction);
+            });
+        });
+    
+        return setters;
+    }
 }
