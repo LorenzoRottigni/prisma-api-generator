@@ -42,39 +42,149 @@ export default class RestAPIGenerator {
         );
     }
 
-    public get getters(): ts.FunctionDeclaration[] {
-        return this.models.map(model => this.factory.createFunctionDeclaration(
-            /* Modifiers */ undefined,
-            /* Asterisk token */ undefined,
-            `get${capitalize(model.name)}`,
-            /* Type parameters*/ undefined,
-            /* Parameters */ [],
-            this.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
-            undefined
-        ))
+    private get prismaClientModelImports(): ts.ImportDeclaration {
+        return this.factory.createImportDeclaration(
+            undefined,
+            this.factory.createImportClause(
+                true,
+                undefined,
+                this.factory.createNamedImports(
+                    this.models.map(model => this.factory.createImportSpecifier(
+                        false,
+                        undefined,
+                        this.factory.createIdentifier(model.name)
+                    ))
+                )
+            ),
+            this.factory.createStringLiteral("@prisma/client")
+        )
     }
+    
+
+    public get getters(): ts.FunctionDeclaration[] {
+        return this.models.map(model => {
+            const functionBody = this.factory.createBlock([
+                // Instantiate PrismaClient
+                this.factory.createVariableStatement(
+                    undefined,
+                    this.factory.createVariableDeclarationList([
+                        this.factory.createVariableDeclaration(
+                            this.factory.createIdentifier("prisma"),
+                            undefined,
+                            undefined,
+                            this.factory.createNewExpression(
+                                this.factory.createIdentifier("PrismaClient"),
+                                undefined,
+                                []
+                            )
+                        )
+                    ])
+                ),
+                // Execute query using PrismaClient and return the result
+                this.factory.createReturnStatement(
+                    this.factory.createAwaitExpression(
+                        this.factory.createCallExpression(
+                            this.factory.createPropertyAccessExpression(
+                                this.factory.createPropertyAccessExpression(
+                                    this.factory.createIdentifier("prisma"),
+                                    this.factory.createIdentifier(capitalize(model.name))
+                                ),
+                                this.factory.createIdentifier("findMany")
+                            ),
+                            undefined,
+                            []
+                        )
+                    )
+                )
+            ], true);
+            
+            // Create function declaration
+            return this.factory.createFunctionDeclaration(
+                [this.factory.createModifier(ts.SyntaxKind.AsyncKeyword)], // Add async modifier
+                undefined,
+                `get${capitalize(model.name)}`,
+                undefined,
+                [],
+                this.factory.createTypeReferenceNode(
+                    "Promise", 
+                    [this.factory.createTypeReferenceNode(model.name, [])]
+                ),
+                functionBody
+            );
+        });
+    }
+    
 
     public get setters(): ts.FunctionDeclaration[] {
-        return this.models.map(model => this.factory.createFunctionDeclaration(
-            /* Modifiers */ undefined,
-            /* Asterisk token */ undefined,
-            `set${capitalize(model.name)}`,
-            /* Type parameters*/ undefined,
-            [
-                this.factory.createParameterDeclaration(undefined, undefined,
-                    this.factory.createIdentifier(model.name),
-                    undefined, undefined
+        return this.models.map(model => {
+            const parameterName = `${model.name.toLowerCase()}Data`; // Parameter name for data to set
+            
+            const functionBody = this.factory.createBlock([
+                // Instantiate PrismaClient
+                this.factory.createVariableStatement(
+                    undefined,
+                    this.factory.createVariableDeclarationList([
+                        this.factory.createVariableDeclaration(
+                            this.factory.createIdentifier("prisma"),
+                            undefined,
+                            undefined,
+                            this.factory.createNewExpression(
+                                this.factory.createIdentifier("PrismaClient"),
+                                undefined,
+                                []
+                            )
+                        )
+                    ])
+                ),
+                // Execute query using PrismaClient and return the result
+                this.factory.createReturnStatement(
+                    this.factory.createAwaitExpression(
+                        this.factory.createCallExpression(
+                            this.factory.createPropertyAccessExpression(
+                                this.factory.createPropertyAccessExpression(
+                                    this.factory.createIdentifier("prisma"),
+                                    this.factory.createIdentifier(capitalize(model.name))
+                                ),
+                                this.factory.createIdentifier("create")
+                            ),
+                            undefined,
+                            [this.factory.createIdentifier(parameterName)]
+                        )
+                    )
                 )
-            ],
-            this.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
-            undefined
-        ))
+            ], true);
+            
+            // Create function declaration
+            return this.factory.createFunctionDeclaration(
+                [this.factory.createModifier(ts.SyntaxKind.AsyncKeyword)], // Add async modifier
+                undefined,
+                `set${capitalize(model.name)}`,
+                undefined,
+                [this.factory.createParameterDeclaration(
+                    undefined,
+                    undefined,
+                    this.factory.createIdentifier(parameterName),
+                    undefined,
+                    this.factory.createTypeReferenceNode(model.name, [])
+                )],
+                this.factory.createTypeReferenceNode(
+                    "Promise", 
+                    [this.factory.createTypeReferenceNode(model.name, [])]
+                ),
+                functionBody
+            );
+        });
     }
-
+    
     public get declarations() {
         return this.factory.updateSourceFile(
             this.sourceFile,
-            [this.prismaClientImport, ...this.getters, ...this.setters]
+            [
+                this.prismaClientImport,
+                this.prismaClientModelImports,
+                ...this.getters,
+                ...this.setters
+            ]
         )
     }
 
