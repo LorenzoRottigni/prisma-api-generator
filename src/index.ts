@@ -1,6 +1,6 @@
 import { generatorHandler } from '@prisma/generator-helper'
 import type { DMMF } from '@prisma/generator-helper'
-import RestAPIGenerator from './generator/rest-api.generator'
+import RESTGenerator from './generators/rest.generator'
 
 generatorHandler({
     onManifest() {
@@ -11,7 +11,7 @@ generatorHandler({
     },
     async onGenerate(options) {
         const document: DMMF.Document = options.dmmf
-        const generator = new RestAPIGenerator(document)
-        generator.generate()
+        const generator = new RESTGenerator(document)
+        generator.emit()
     },
 })
