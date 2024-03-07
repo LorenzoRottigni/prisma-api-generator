@@ -15,11 +15,11 @@ export default class RESTGenerator extends APIGenerator implements APIGeneratorS
             this.sourceFile,
             [
                 ...this.driver.__imports,
-                ...this.driver.__findAll,
-                ...this.driver.__findOne,
-                ...this.driver.__create,
-                ...this.driver.__update,
-                ...this.driver.__delete,
+                ...this.driver.__findAllFunction,
+                ...this.driver.__findOneFunction,
+                ...this.driver.__createFunction,
+                ...this.driver.__updateFunction,
+                ...this.driver.__deleteFunction,
                 ...this.driver.__getters,
                 ...this.driver.__setters
             ]
