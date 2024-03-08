@@ -1,21 +1,69 @@
 import { DMMF } from '@prisma/generator-helper'
-import type { ORMDriverSchema } from '../../../types'
 import ORMDriver from '../orm.driver'
 import ts from 'typescript'
 import { PrismaService } from './prisma.service'
 import { capitalize } from '../../../utils'
+import { Bundle, BundleFile, GenerationStrategy, GeneratorDriver } from '../../../types'
 
-export default class PrismaDriver extends ORMDriver implements ORMDriverSchema {
-  constructor(private document: DMMF.Document, private prismaService = new PrismaService()) {
-    super()
+export default class PrismaDriver extends ORMDriver implements GeneratorDriver {
+  constructor(schema: DMMF.Document, strategies: GenerationStrategy[], private prismaService = new PrismaService()) {
+    super(schema, strategies)
   }
 
   public get models() {
-    return this.document.datamodel.models
+    return this.schema.datamodel.models
   }
 
   public get __imports(): ts.ImportDeclaration[] {
     return [this.prismaService.__prismaClientImport, this.__prismaClientModelsImport()]
+  }
+
+  public generateServiceBundle(strategy: GenerationStrategy, sourceFile: ts.SourceFile): string {
+    const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed })
+
+    return {
+      [GenerationStrategy.inclusive]: printer.printNode(
+        ts.EmitHint.SourceFile,
+        ts.factory.updateSourceFile(sourceFile, [
+          ...this.__imports,
+          ...this.__findAllFunctions,
+          ...this.__findOneFunctions,
+          ...this.__createFunctions,
+          ...this.__updateFunctions,
+          ...this.__deleteFunctions,
+          ...this.__getters,
+          ...this.__setters,
+        ]),
+        sourceFile
+      ),
+      [GenerationStrategy.modular]: printer.printNode(
+        ts.EmitHint.SourceFile,
+        ts.factory.updateSourceFile(sourceFile, [
+          ...this.__imports,
+          this.__modelServiceClass(sourceFile.fileName.split('.')[0]),
+          // ...this.driver.__modelFunctions(
+          //     // TODO: something safer :D
+          //     sourceFile.fileName.split('.')[0]
+          // )
+        ]),
+        sourceFile
+      ),
+    }[strategy]
+  }
+
+  public generateBundle(): Bundle {
+    return this.strategies
+      .filter((strategy) => !!this.sourceFiles[strategy])
+      .map(
+        (strategy) =>
+          this.sourceFiles[strategy]?.map(
+            (sourceFile): BundleFile => ({
+              file: this.generateServiceBundle(strategy, sourceFile),
+              filename: sourceFile.fileName,
+            })
+          ) || []
+      )
+      .flat(2)
   }
 
   public __modelServiceClass(modelName: string): ts.ClassDeclaration {
