@@ -3,6 +3,7 @@ import { APIGeneratorSchema, GenerationStrategy, GeneratorConfig } from "../type
 import APIGenerator from "./api.generator";
 import ts from 'typescript'
 import * as fs from 'fs'
+import { capitalize } from "../utils";
 
 /** @description RESTGenerator */
 export default class RESTGenerator extends APIGenerator implements APIGeneratorSchema {
@@ -46,10 +47,11 @@ export default class RESTGenerator extends APIGenerator implements APIGeneratorS
                     sourceFile,
                     [
                         ...this.driver.__imports,
-                        ...this.driver.__modelFunctions(
-                            // TODO: something safer :D
-                            sourceFile.fileName.split('.')[0]
-                        )
+                        this.driver.__modelServiceClass(sourceFile.fileName.split('.')[0])
+                        // ...this.driver.__modelFunctions(
+                        //     // TODO: something safer :D
+                        //     sourceFile.fileName.split('.')[0]
+                        // )
                     ]
                 ),
                 sourceFile
@@ -65,6 +67,7 @@ export default class RESTGenerator extends APIGenerator implements APIGeneratorS
         this.config.strategies.forEach(
             strategy => this.sourceFiles[strategy]?.forEach(
                 sourceFile => {
+                    const printer = ts.createPrinter();
                     fs.writeFileSync(
                         `${this.config.outDir}/${sourceFile.fileName}`,
                         this.generateBundle(strategy, sourceFile)
