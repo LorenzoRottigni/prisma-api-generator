@@ -1,19 +1,23 @@
 import { DMMF } from "@prisma/generator-helper"
 import PrismaDriver from "../drivers/orm/prisma/prisma.driver"
 import ts from 'typescript'
-import { type GeneratorSourceFiles, type GeneratorConfig, GenerationStrategy } from "../types"
+import { type GeneratorSourceFiles, type GeneratorConfig, GenerationStrategy, GeneratorORMDriver } from "../types"
 
+/**
+ * @description APIGenerator:
+ * This is meant to be a base class to perform core api generation operations.
+ * GraphQL and REST API generators extend this class to use specific HTTP architectures.
+ */
 export default class APIGenerator {
     protected driver: PrismaDriver
     protected sourceFiles: GeneratorSourceFiles
     constructor(
         protected config: GeneratorConfig,
         protected schema: DMMF.Document,
-        protected driverName = 'prisma',
         protected fileName = 'api.ts',
         protected outDir = './codegen'
     ) {
-        this.loadORMDriver(driverName)
+        this.loadORMDriver()
         this.loadSourceFiles()
     }
 
@@ -21,6 +25,9 @@ export default class APIGenerator {
         return this.schema.datamodel.models
     }
 
+    /**
+     * @description Load different source files based off the specified configuration.
+     */
     public loadSourceFiles() {
         this.sourceFiles = {}
         const createSourceFile = (filename: string) => ts.createSourceFile(
@@ -38,13 +45,16 @@ export default class APIGenerator {
         }
     }
 
-    public loadORMDriver(driver: 'prisma' | string) {
-        switch(driver) {
-            case 'prisma':
+    /**
+     * @description Load different ORM drivers based off the specified configuration.
+     */
+    public loadORMDriver() {
+        switch(this.config.orm) {
+            case GeneratorORMDriver.prisma:
                 this.driver = new PrismaDriver(this.schema)
                 break
             default:
-                console.warn(`Driver not implemented ${driver}`)
+                console.warn(`Driver not implemented ${this.config.orm}`)
         }
     }
 }

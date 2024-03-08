@@ -3,6 +3,11 @@ import { capitalize } from '../../../utils';
 export class PrismaService {
     constructor() {}
 
+    /**
+     * @description Generates Prisma client import declaration:
+     * import { PrismaClient } from '@prisma/client' 
+     * @returns {ts.ImportDeclaration}
+     */
     public get __prismaClientImport(): ts.ImportDeclaration {
         const module = '@prisma/client'
         const namedImport = 'PrismaClient'
@@ -23,6 +28,11 @@ export class PrismaService {
         );
     }
 
+    /**
+     * @description Generates PrismaClient object declaration:
+     * const prisma = new PrismaClient()
+     * @returns {ts.VariableStatement} 
+     */
     public get __prismaClientStatement(): ts.VariableStatement { 
         return ts.factory.createVariableStatement(
             undefined,
@@ -41,6 +51,11 @@ export class PrismaService {
         )
     }
 
+    /**
+     * @description Converts a Prisma raw DB type to a known Typescript type.
+     * @param {string} type Prisma raw DB type 
+     * @returns {ts.TypeNode} 
+     */
     public prismaToTSType(type: string): ts.TypeNode {
         switch (type) {
             case "Int":
@@ -56,6 +71,12 @@ export class PrismaService {
         }
     }
 
+    /**
+     * @description Generates findAll function for the given model:
+     * ex. async function getUsers(): Promise<User[]>
+     * @param modelName 
+     * @returns {ts.FunctionDeclaration}
+     */
     public __findAllFunction(modelName: string): ts.FunctionDeclaration {
         const body: ts.FunctionBody = ts.factory.createBlock([
             this.__prismaClientStatement,
@@ -76,6 +97,12 @@ export class PrismaService {
         );
     }
 
+    /**
+     * @description Generates findOne function for the given model:
+     * ex. async function findOneUser(id: number): Promise<User[] | null>
+     * @param modelName 
+     * @returns {ts.FunctionDeclaration}
+     */
     public __findOneFunction(modelName: string) {
         const body: ts.FunctionBody = ts.factory.createBlock([
             this.__prismaClientStatement,
@@ -98,7 +125,7 @@ export class PrismaService {
                 "Promise",
                 [
                     ts.factory.createUnionTypeNode([
-                        ts.factory.createArrayTypeNode(ts.factory.createTypeReferenceNode(modelName, [])),
+                        ts.factory.createTypeReferenceNode(modelName, []),
                         ts.factory.createTypeReferenceNode("null")
                     ])
                 ]
@@ -107,6 +134,12 @@ export class PrismaService {
         );
     }
 
+    /**
+     * @description Generates create function for the given model:
+     * ex. async function createUser(user: User): Promise<User>
+     * @param modelName 
+     * @returns {ts.FunctionDeclaration}
+     */
     public __createFunction(modelName: string): ts.FunctionDeclaration {
         const body: ts.FunctionBody = ts.factory.createBlock([
             this.__prismaClientStatement,
@@ -133,6 +166,12 @@ export class PrismaService {
         );
     }
 
+    /**
+     * @description Generates update function for the given model:
+     * ex. async function updateUser(id: number, user: User): Promise<User>
+     * @param modelName 
+     * @returns {ts.FunctionDeclaration}
+     */
     public __updateFunction(modelName: string): ts.FunctionDeclaration {
         const body: ts.FunctionBody = ts.factory.createBlock([
             this.__prismaClientStatement,
@@ -166,6 +205,12 @@ export class PrismaService {
         );
     }
 
+    /**
+     * @description Generates delete function for the given model:
+     * ex. async function deleteUser(id: number): Promise<User>
+     * @param modelName 
+     * @returns {ts.FunctionDeclaration}
+     */
     public __deleteFunction(modelName: string): ts.FunctionDeclaration {
         const body: ts.FunctionBody = ts.factory.createBlock([
             this.__prismaClientStatement,
@@ -192,6 +237,13 @@ export class PrismaService {
         );
     }
 
+    /**
+     * @description Generates getter function for the given model's field:
+     * ex. async function getUserEmail(id: number): Promise<string | null>
+     * @param modelName 
+     * @param field 
+     * @returns {ts.FunctionDeclaration}
+     */
     public __getter(modelName: string, field: { name: string, type: string }): ts.FunctionDeclaration {
         const body: ts.FunctionBody = ts.factory.createBlock([
             this.__prismaClientStatement,
@@ -223,6 +275,13 @@ export class PrismaService {
         );
     }
 
+    /**
+     * @description Generates setter function for the given model's field:
+     * ex. async function setUserEmail(id: number, user: string): Promise<User> {
+     * @param modelName 
+     * @param field 
+     * @returns {ts.FunctionDeclaration}
+     */
     public __setter(modelName: string, field: { name: string, type: string }): ts.FunctionDeclaration {
         const body: ts.FunctionBody = ts.factory.createBlock([
             this.__prismaClientStatement,
@@ -258,6 +317,12 @@ export class PrismaService {
         );
     }
 
+    /**
+     * @description Generates the prisma.<model>.findAll statement for the given model:
+     * ex. return await prisma.user.findMany();
+     * @param modelName 
+     * @returns {ts.ReturnStatement}
+     */
     public __findAllStatement(modelName: string): ts.ReturnStatement {
         return ts.factory.createReturnStatement(
             ts.factory.createAwaitExpression(
@@ -276,7 +341,14 @@ export class PrismaService {
         )
     }
 
+    /**
+     * @description Generates the prisma.<model>.findUnique statement for the given model:
+     * ex. return await prisma.user.findUnique();
+     * @param modelName 
+     * @returns {ts.ReturnStatement}
+     */
     public __findOneStatement(modelName: string): ts.ReturnStatement {
+        const idIdentifier = ts.factory.createIdentifier("id");
         return ts.factory.createReturnStatement(
             ts.factory.createAwaitExpression(
                 ts.factory.createCallExpression(
@@ -285,15 +357,31 @@ export class PrismaService {
                             ts.factory.createIdentifier("prisma"),
                             ts.factory.createIdentifier(modelName.toLowerCase())
                         ),
-                        ts.factory.createIdentifier("findMany")
+                        ts.factory.createIdentifier("findUnique")
                     ),
                     undefined,
-                    []
+                    [ts.factory.createObjectLiteralExpression([
+                        ts.factory.createPropertyAssignment(
+                            "where",
+                            ts.factory.createObjectLiteralExpression([
+                                ts.factory.createPropertyAssignment(
+                                    "id",
+                                    idIdentifier
+                                )
+                            ])
+                        )
+                    ])]
                 )
             )
         )
     }
-
+    
+    /**
+     * @description Generates the prisma.<model>.create statement for the given model:
+     * ex. return await prisma.user.create({ data: user });
+     * @param modelName 
+     * @returns {ts.ReturnStatement}
+     */
     public __createStatement(modelName: string): ts.ReturnStatement {
         const args = ts.factory.createObjectLiteralExpression([
             ts.factory.createPropertyAssignment(
@@ -318,6 +406,12 @@ export class PrismaService {
         )
     }
 
+    /**
+     * @description Generates the prisma.<model>.update statement for the given model:
+     * ex. return await prisma.user.update({ where: { id: id }, data: user });
+     * @param modelName 
+     * @returns {ts.ReturnStatement}
+     */
     public __updateStatement(modelName: string): ts.ReturnStatement {
         const args = ts.factory.createObjectLiteralExpression([
             ts.factory.createPropertyAssignment(
@@ -351,6 +445,12 @@ export class PrismaService {
         )
     }
 
+    /**
+     * @description Generates the prisma.<model>.delete statement for the given model:
+     * ex. return await prisma.user.delete({ where: { id: id } });
+     * @param modelName 
+     * @returns {ts.ReturnStatement}
+     */
     public __deleteStatement(modelName: string): ts.ReturnStatement {
         return ts.factory.createReturnStatement(
             ts.factory.createAwaitExpression(
@@ -381,6 +481,13 @@ export class PrismaService {
         )
     }
 
+    /**
+     * @description Generates fields getters for the given model:
+     * ex. async function getUserUsername(id: number): Promise<string | null>
+     * @param modelName 
+     * @param fieldName 
+     * @returns {ts.ReturnStatement}
+     */
     public __getModelFieldStatement(modelName: string, fieldName: string): ts.ReturnStatement {
         return ts.factory.createReturnStatement(
             ts.factory.createBinaryExpression(
@@ -431,6 +538,13 @@ export class PrismaService {
         )
     }
 
+    /**
+     * @description Generates fields setters for the given model:
+     * ex. await prisma.user.update({ where: { id: id }, data: { username: user } });
+     * @param modelName 
+     * @param fieldName 
+     * @returns {ts.ReturnStatement}
+     */
     public __setModelFieldStatement(modelName: string, fieldName: string): ts.ReturnStatement {
         const args = ts.factory.createObjectLiteralExpression([
             ts.factory.createPropertyAssignment(
